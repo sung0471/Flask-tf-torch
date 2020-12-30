@@ -17,6 +17,8 @@ class FileControl:
 
         print(base_dir)
         media_dir = os.path.join(base_dir, 'media')
+        if not os.path.exists(os.path.join(media_dir, 'image')):
+            os.makedirs(os.path.join(media_dir, 'image'))
         self.image_dir = os.path.join(media_dir, 'image')
         self.video_dir = os.path.join(media_dir, 'video')
 
@@ -60,10 +62,11 @@ def get_image():
     POST 방식으로 받은 image를 전처리해서 return 해주는 함수
     :return: np.array
     """
+    print(request)
     image = request.files['file'].read()
     npimg = np.fromstring(image, np.uint8)
     img = cv2.imdecode(np.frombuffer(npimg, dtype=np.uint8), cv2.IMREAD_COLOR)
-    img = Image.fromarray(img, 'RGB')
+    #img = Image.fromarray(img, 'RGB')
 
     # data = request.data
     # nparr = np.fromstring(data.decode('base64'), np.uint8)
@@ -78,10 +81,10 @@ def encode_img(img):
     :param img: np.array
     :return: string
     """
-    byte_arr = io.BytesIO()
-    img.save(byte_arr, format='JPEG')
-    encoded_img = encodebytes(byte_arr.getvalue()).decode('ascii')
-
+    # byte_arr = io.BytesIO()
+    # img.save(byte_arr, format='JPEG')
+    # encoded_img = encodebytes(byte_arr.getvalue()).decode('ascii')
+    encoded_img = cv2.imencode('.jpg', img)
     return encoded_img
 
 
@@ -98,6 +101,7 @@ if __name__ == '__main__':
     while success:
         image_path = path.get_image_path(room, count)
         cv2.imwrite(image_path, image)  # save frame as JPEG file
+        print(image_path)
         success, image = vidcap.read()
         print('Read a new frame #{}: {}'.format(count, success))
         count += 1

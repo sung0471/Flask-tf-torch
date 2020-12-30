@@ -27,7 +27,7 @@ class Index(Resource):
         res.headers['Content-type'] = 'text/html; charset=utf-8'
         return res
 
-
+import cv2
 class TrackingImage(Resource):
     """
     :description
@@ -47,16 +47,22 @@ class TrackingImage(Resource):
 
     @staticmethod
     def post():
+       
         location, frame_num, _ = get_param_parsing()
+        print('localtion',location)
         img = get_image()
         # img.show()
         # print(type(img))
-
-        file_path, file_name, img, box_num = tracking(location, frame_num, img)
-
+        
+        file_path, img, box_num = tracking(location, frame_num, img) # 저장한 위치,
+        # ./media/tracking/{room_number}/{fil_name}     # str
+        # img class = numpy object
+        # box_num                                                          # result / int
+        
         encoded_img = encode_img(img)
 
-        res = make_response({'box_num': box_num, 'image': encoded_img})
+        res = make_response({'oksign':True})
+        #res = make_response({'box_num': box_num, 'image': encoded_img})
         res.headers['Content-type'] = 'application/json'
 
         return res
