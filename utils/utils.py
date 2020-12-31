@@ -20,6 +20,7 @@ class FileControl:
             os.makedirs(os.path.join(media_dir, 'image'))
         self.image_dir = os.path.join(media_dir, 'image')
         self.video_dir = os.path.join(media_dir, 'video')
+        self.tracking_dir = os.path.join(media_dir,'tracking')
 
     def get_image_path(self, location, frame, return_join=True):
         location = str(location)
@@ -38,6 +39,12 @@ class FileControl:
     def get_video_path(self, video_name):
         video_path = os.path.join(self.video_dir, video_name)
         return video_path
+    
+    def get_tracked_image_path(self,location,time,return_join=True):
+        image_path = os.path.join(location,time+'.jpg')
+        if return_join:
+            return self.image_dir,image_path        
+        return  os.path.join(self.image_dir,image_path)
 
 
 def get_param_parsing():

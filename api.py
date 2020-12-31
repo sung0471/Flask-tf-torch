@@ -27,7 +27,6 @@ class Index(Resource):
         res.headers['Content-type'] = 'text/html; charset=utf-8'
         return res
 
-import cv2
 class TrackingImage(Resource):
     """
     :description
@@ -79,15 +78,15 @@ class SendImage(Resource):
     
     @staticmethod
     def get():
-        location, frame_num, show_image = get_param_parsing()
+        location, time, show_image = get_param_parsing()
         
         # return time, saved_image, box num
         if show_image:
-            file_path, file_name = path.get_image_path(location, frame_num, return_join=False)
+            file_path, file_name = path.get_tracked_image_path(location, time, return_join=False)
 
             return send_from_directory(file_path, file_name)
         else:
-            img_path = path.get_image_path(location, frame_num)
+            img_path = path.get_tracked_image_path(location, time)
             img = Image.open(img_path, mode='r')
             encoded_img = encode_img(img)
 
