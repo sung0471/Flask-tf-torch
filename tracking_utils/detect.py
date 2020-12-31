@@ -66,19 +66,12 @@ def detect(image, YOLO, class_name, args, input_details=None, output_details=Non
     return image
 
 
-def select_yolo(args, hyp):
-    if args.is_tiny:
-        YOLO = YOLOv4.YOLOv4_tiny(args, hyp)
-    else:
-        YOLO = YOLOv4.YOLOv4(args, hyp)
+def select_yolo(args):
     input_details= None
     output_details=None
     saved_model_loaded=None
     if args.weight_path!='':
-        if args.is_darknet_weight:
-            print('load darknet weight from {}'.format(args.weight_path))
-            load_darknet_weights(YOLO.model,args.weight_path,args.is_tiny)
-        elif args.is_saved_model:
+        if args.is_saved_model:
             print('load saved model from {}'.format(args.weight_path))
             saved_model_loaded = tf.saved_model.load(args.weight_path, tags=[tag_constants.SERVING])
             YOLO = saved_model_loaded.signatures['serving_default']
