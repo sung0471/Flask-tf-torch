@@ -1,7 +1,7 @@
 from PIL import Image
 from flask import Flask, make_response, send_from_directory
 from flask_restful import Resource, Api
-from utils.utils import get_param_parsing, get_image, encode_img, FileControl
+from utils.utils import get_location_parsing,get_param_parsing, get_image, encode_img, FileControl, get_box_num, get_time_list, load_encoded_img
 from tracking_utils.tracking_module import main as tracking
 
 path = FileControl()
@@ -28,52 +28,51 @@ class Index(Resource):
         return res
 
 class TrackingImage(Resource):
-    """
-    :description
-        Image를 HTTP post 방식으로 받아서 tracking해주는 API
+    """Image를 HTTP post 방식으로 받아서 tracking해주는 API
         location(방 번호)와 frame(프레임 번호)는 GET 방식으로 입력받음
-    :return
-        JSON
-        :key
-            box_num(int)
-            image(binary string)
-        :value
-            box number per image(int)
-            image data(binary string)
+    
+    Args:
+        Resource ([Resource object]): /tracking?location=a&time=b
+            a ([int]): 트레킹 요청된 location, default = 0
+            b ([str]): 트레킹 요청된 이미지에 대한 시간 정보, default = '0000_00_00_00_00_00_00'
+        Request file ([base64 object]): 트레킹 요청된 이미지
+    
+    Returns:
+        ([Response object])
+            file_path ([str]): 이미지 저장된 경로,
+            image ([base64 object]): Tracking 결과 이미지
+            box_num ([int]):검출된 box 개수
     """
+    # TODO: 매 프레임마다 해야하는 동작에 return이 불필요하고 많음
+
     def get(self):
         return self.post()
 
     @staticmethod
-    def post(): # client
-       
-        location, frame_num, _ = get_param_parsing()
-        print('localtion',location)
+    def post():
+        location, time, _ = get_param_parsing()
         img = get_image()
-        # img.show()
-        # print(type(img))
-        
-        file_path, img, box_num = tracking(location, frame_num, img) # 저장한 위치,
-        # ./media/tracking/{room_number}/{fil_name}     # str
-        # img class = numpy object
-        # box_num                                                          # result / int
-        
+        file_path, img, box_num = tracking(location, time, img)
         encoded_img = encode_img(img)
-
-        res = make_response({'file_path':file_path,'box_num':box_num})
-        #res = make_response({'box_num': box_num, 'image': encoded_img})
+    
+        res = make_response({'file_path':file_path,'image':encoded_img,'box_num':box_num})
         res.headers['Content-type'] = 'application/json'
 
         return res
 
 
 class SendImage(Resource):
-    """특정 location, time에 해당하는 사진 전송
+    """특정 location, time에 해당하는 결과 이미지, 검출된 박스 개수 반환
     
+    Args:
+        Resource ([Resource object]): /tracking?location=a&time=b
+            a ([int]): 요청된 location, default = 0
+            b ([str]): 요청된 이미지에 대한 시간 정보, default = '0000_00_00_00_00_00_00'
     Returns:
         Json
-            box_num ([int]): 해당 이미지에서 검출된 box 개수
-            image ([binary string]): 검출 결과가 그려진 이미지
+        ([Response object])
+            image ([base64 object]): Tracking 결과 이미지
+            box_num ([int]):검출된 box 개수
     """
     
     @staticmethod
@@ -87,41 +86,47 @@ class SendImage(Resource):
             return send_from_directory(file_path, file_name)
         else:
             img_path = path.get_tracked_image_path(location, time)
-            img = Image.open(img_path, mode='r')
-            encoded_img = encode_img(img)
-
-            res = make_response({'image': encoded_img, 'box_num': 0})
+            encoded_img = load_encoded_img(img_path)
+            
+            box_num = get_box_num(location,time)
+            res = make_response({'image': encoded_img, 'box_num': box_num})
             res.headers['Content-type'] = 'application/json'
 
             return res
 
 class SendInfo(Resource):
     """특정 location에 대한 time_list 반환
-
+    
+    Args:
+        Resource ([Resource object]): /get_image?location=a
+            a = 요청된 location, default = 0
     Returns:
         ([str list]): 특정 location에 대한 time_list
     """
     @staticmethod
     def get():
-        location = get_param_parsing()
+        location = get_location_parsing()
         res = make_response({'time_list': get_time_list(location)})
         res.headers['Content-type'] = 'application/json'
         return res
 
 api.add_resource(Index, '/', '/index')
 # API를 간단히 설명해주는 페이지
+
 api.add_resource(TrackingImage, '/tracking')
-# /tracking?location=a&frame=b
-# a = 방의 위치(카메라의 번호), default=0
-# b = 보내주는 프레임의 번호(나중에 시간으로 바뀔 수 있음 or 없어질 수 있음), default=0
+# /tracking?location=a&time=b
+# a ([int]): 요청된 location, default = 0
+# b ([str]): 요청된 이미지에 대한 시간 정보, default = '0000_00_00_00_00_00_00'
+# 
+
 api.add_resource(SendImage, '/get_image')
-api.add_resource(SendInfo, './location_info')
+# /tracking?location=a&time=b
+# a ([int]): 요청된 location, default = 0
+# b ([str]): 요청된 이미지에 대한 시간 정보, default = '0000_00_00_00_00_00_00'
 
-# /get_image?location=a&frame=b&show_image=False
+api.add_resource(SendInfo, '/location_info')
+# /get_image?location=a
 # a = 방의 위치(카메라의 번호), default=0
-# b = 프레임 번호(나중에 시간으로 바뀔 수 있음 or 없어질 수 있음), default=0
-# imageonly = 이미지 자체로 단독으로 받을지, binary data로 다른 데이터와 같이 받을지 선택, default=False
-
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0')

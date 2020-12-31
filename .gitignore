@@ -3,3 +3,4 @@ tracking/
 output/
 media/image/
 saved_model/
+__pycache__/

@@ -1,11 +1,10 @@
 # ! /usr/bin/env python
 # -*- coding: utf-8 -*-
 import os
-from timeit import time
 import warnings
 import cv2
 import numpy as np
-
+import datetime as dt
 from tracking_utils.deep_sort import preprocessing, nn_matching
 from tracking_utils.deep_sort import Detection
 from tracking_utils.deep_sort import Tracker
@@ -39,30 +38,44 @@ nms_max_overlap = 1.0
 # tracker metric
 metric = nn_matching.NearestNeighborDistanceMetric("cosine", max_cosine_distance, None)
 
-class TrackerClass:
+class LocationInfo:
     def __init__(self):
         self.tracker = dict()
         self.colors = dict()
+        self.last_save_time = dict()
+        self.last_box = dict()
 
     def check(self,location):
         if location not in self.tracker.keys():
             self.tracker[location] = Tracker(metric)
             self.colors[location] = np.random.randint(0, 255, size=(200, 3), dtype="uint8")
+            self.last_box[location] = 0
+            self.last_save_time[location] = None
 
     def get(self,location):
         return self.tracker[location],self.colors[location]
 
-Trackers = TrackerClass()
+    def time_check(self,location,time):
+        times = [int(t) for t in time.split('_')]
+        times[-1] *=int(1e4)
+        now_time = dt.datetime(*times)
+        
+        if self.last_save_time[location]==None or (now_time - self.last_save_time[location]).total_seconds() >= 30:
+            self.last_save_time[location] = now_time
+            return True
+        else:
+            return False
 
+location_info = LocationInfo()
 
-def main(location, frame, image):
+def main(location, time, image):
     """
     :param
         location: int
         Location number of input image
     :param
-        frame: int
-        fram number or time of input image        
+        time: int
+        date time of input image [format : yyyy_mm_dd_hh-mm_ss_ss]
     :param
         image: np.array
         image drawed box
@@ -75,13 +88,14 @@ def main(location, frame, image):
         box_count : int
             counted number of box
     """
+
     # load tracker for specific location
-    Trackers.check(location)
-    tracker,COLORS = Trackers.get(location)
-    
-    image = np.squeeze(image)
-    
+    location_info.check(location)
+    tracker,COLORS = location_info.get(location)
+    is_save = location_info.time_check(location,time)
+
     # image preprocessing
+    image = np.squeeze(image)
     img = image.copy() / 255.0
     h, w, _ = img.shape
     if h != args.img_size or w != args.img_size:
@@ -111,34 +125,44 @@ def main(location, frame, image):
 
     box_count = int(0)
 
-    for det in detections:
-        bbox = det.to_tlbr()
-        cv2.rectangle(image,(int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])),(255,255,255), 2)
+    # draw detected bounding box
+    if is_save:
+        for det in detections:
+            bbox = det.to_tlbr()
+            cv2.rectangle(image,(int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])),(255,255,255), 2)
 
+    # draw tracked bounding box
     for track in tracker.tracks:
         if not track.is_confirmed() or track.time_since_update > 1:
             continue
-        bbox = track.to_tlbr()
-        color = [int(c) for c in COLORS[int(track.track_id) % len(COLORS)]]
+        if is_save:
+            bbox = track.to_tlbr()
+            color = [int(c) for c in COLORS[int(track.track_id) % len(COLORS)]]
 
-        cv2.rectangle(image, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])),(color), 3)
-        b0 = str(bbox[0])   # .split('.')[0] + '.' + str(bbox[0]).split('.')[0][:1]
-        b1 = str(bbox[1])   # .split('.')[0] + '.' + str(bbox[1]).split('.')[0][:1]
-        b2 = str(bbox[2]-bbox[0])   # .split('.')[0] + '.' + str(bbox[3]).split('.')[0][:1]
-        b3 = str(bbox[3]-bbox[1])
+            cv2.rectangle(image, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])),(color), 3)
+            b0 = str(bbox[0])   # .split('.')[0] + '.' + str(bbox[0]).split('.')[0][:1]
+            b1 = str(bbox[1])   # .split('.')[0] + '.' + str(bbox[1]).split('.')[0][:1]
+            b2 = str(bbox[2]-bbox[0])   # .split('.')[0] + '.' + str(bbox[3]).split('.')[0][:1]
+            b3 = str(bbox[3]-bbox[1])
 
-        cv2.putText(image,str(track.track_id),(int(bbox[0]), int(bbox[1] -50)),0, 5e-3 * 150, (color),2)
-        if len(class_names) > 0:
-            class_name = class_names[0]
-            cv2.putText(image, str(convert_class_name[class_name[0].numpy()]),(int(bbox[0]), int(bbox[1] -20)),0, 5e-3 * 150, (color),2)
+            cv2.putText(image,str(track.track_id),(int(bbox[0]), int(bbox[1] -50)),0, 5e-3 * 150, (color),2)
+            if len(class_names) > 0:
+                class_name = class_names[0]
+                cv2.putText(image, str(convert_class_name[class_name[0].numpy()]),(int(bbox[0]), int(bbox[1] -20)),0, 5e-3 * 150, (color),2)
 
         box_count += 1
-    cv2.putText(image, "Current Box Counter: "+str(box_count),(int(20), int(80)),0, 5e-3 * 200, (0,255,0),2)
-    
-    pre_path = os.path.join(args.write_path,f'{location}')
-    if not os.path.exists(pre_path):
-        os.makedirs(pre_path)
-    write_path = os.path.join(pre_path,f'{frame}.jpg')
-    cv2.imwrite(write_path,image)
+    write_path = None
+    if is_save or location_info.last_box[location] != box_count:
+        pre_path = os.path.join(args.write_path,f'{location}')
+        if not os.path.exists(pre_path):
+            os.makedirs(pre_path)
+        location_info.last_box[location] = box_count
+        f = open(pre_path+f'/box_{time[:10]}.csv','w' if not os.path.exists(pre_path+f'/box_{time[:10]}.csv') else 'a')
+        f.writelines(f'{time},{box_count}\n')
+
+    if is_save:
+        cv2.putText(image, "Current Box Counter: "+str(box_count),(int(20), int(80)),0, 5e-3 * 200, (0,255,0),2)
+        write_path = os.path.join(pre_path,f'{time}.jpg')
+        cv2.imwrite(write_path,image)
     
     return write_path, image, box_count

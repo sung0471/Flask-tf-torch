@@ -2,11 +2,12 @@ import os
 import numpy as np
 import cv2
 import io
-from base64 import encodebytes
+import json
+from base64 import b64decode,b64encode
 from flask import request
 from PIL import Image
 from glob import glob
-
+import time as tick
 class FileControl:
     """
     media관련 path를 return해주는 함수들을 갖고 있는 class
@@ -22,15 +23,11 @@ class FileControl:
         self.video_dir = os.path.join(media_dir, 'video')
         self.tracking_dir = os.path.join(media_dir,'tracking')
 
-    def get_image_path(self, location, frame, return_join=True):
-        location = str(location)
-        location = (4 - len(location)) * '0' + location
-
-        frame = str(frame)
-        frame = (8 - len(frame)) * '0' + frame
-
-        image_path = location + frame + '.jpg'
-
+    def get_image_path(self, location, time, return_join=True):
+        pre_path = os.path.join(self.image_dir,f'{location}')
+        if not os.path.exists(pre_path):
+            os.makedirs(pre_path)
+        image_path = os.path.join(pre_path ,time + '.jpg')
         if return_join:
             return os.path.join(self.image_dir, image_path)
         else:
@@ -41,10 +38,10 @@ class FileControl:
         return video_path
     
     def get_tracked_image_path(self,location,time,return_join=True):
-        image_path = os.path.join(location,time+'.jpg')
-        if return_join:
-            return self.image_dir,image_path        
-        return  os.path.join(self.image_dir,image_path)
+        image_path = os.path.join(f'{location}',time+'.jpg')
+        if not return_join:
+            return self.tracking_dir,image_path        
+        return  os.path.join(self.tracking_dir,image_path)
 
 
 def get_param_parsing():
@@ -74,62 +71,88 @@ def get_location_parsing():
     return args.get('location', default=0, type=int)
 
 def get_time_list(location):
-    """
+    """ 특정 location에 대한 time_list 반환
     Args:
         location ([int]): 요청된 location
 
     Returns:
         ([str list]): 특정 location에 대한 time_list
     """
-    image_paths = glob.glob(f'./media/tracking/{location}/*.jpg')
-    return [image_path.replace('.jpg','') for image_path in image_paths]
+    image_paths = glob(f'./media/tracking/{location}/*.jpg')
+    return [image_path.split('\\')[-1].replace('.jpg','') for image_path in image_paths]
 
+def get_box_num(location,time):
+    """ 특정 location, time에 대해 검출된 box 개수 반환
+
+    Args:
+        location ([int]): 요청된 장소
+        time ([str]): 요청된 시간
+
+    Returns:
+        [int]: 검출된 box 개수
+    """
+    path = os.path.join('./media/tracking',f'{location}',f'box_{time[:10]}.csv')
+    lines = open(path,'r')
+    for line in lines:
+        l = line.split(',')
+        if l[0] == time:
+            return int(l[1].strip('\n'))
+    return -1
 
 def get_image():
     """Get_parsing
 
     Returns:
-        file ([np.array]): 요청된 이미지
+        ([np.array]): 디코딩 된 이미지
     """
     image = request.files['file'].read()
-    npimg = np.fromstring(image, np.uint8)
-    img = cv2.imdecode(np.frombuffer(npimg, dtype=np.uint8), cv2.IMREAD_COLOR)
-    #img = Image.fromarray(img, 'RGB')
+    npimg = np.frombuffer(b64decode(image),dtype=np.uint8)
+    return cv2.imdecode(npimg, cv2.IMREAD_COLOR)
 
-    # data = request.data
-    # nparr = np.fromstring(data.decode('base64'), np.uint8)
-    # img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+def load_encoded_img(img_path):
+    """[summary]
 
-    return img
+    Args:
+        img_path ([str]): 이미지 경로
 
+    Returns:
+        [base64 object]: 인코딩 된 이미지
+    """
+    img_file =  open(img_path, "rb")
+    encoded_img = b64encode(img_file.read()).decode('ascii')
+    img_file.close()
+    return encoded_img
 
 def encode_img(img):
+    """Tracking 결과 이미지 인코딩
+
+    Args:
+        img (np.array): Tracking 결과 이미지
+
+    Returns:
+        [base64 object]: 인코딩 된 이미지
     """
-    response로 전송해줄 image를 encoding해주고 return하는 함수
-    :param img: np.array
-    :return: string
-    """
-    # byte_arr = io.BytesIO()
-    # img.save(byte_arr, format='JPEG')
-    # encoded_img = encodebytes(byte_arr.getvalue()).decode('ascii')
-    encoded_img = cv2.imencode('.jpg', img).tostring()
-    return encoded_img
+    _, encoded_img = cv2.imencode('.jpg', img)
+    return b64encode(encoded_img).decode('ascii')
 
 
 if __name__ == '__main__':
     # media/video/box.mp4 -> frames save to media/image/
+    import datetime as dt
+    now_time = dt.datetime.now()
 
     video_name = 'box.mp4'
     path = FileControl()
     video_path = path.get_video_path(video_name)
     vidcap = cv2.VideoCapture(video_path)
     success, image = vidcap.read()
-    room = 0
+    location = 0
     count = 0
     while success:
-        image_path = path.get_image_path(room, count)
+        time = now_time+ dt.timedelta(seconds=0.033*count)
+        time = time.strftime("%Y_%m_%d_%H_%M_%S_%f")[:-4]
+        image_path = path.get_image_path(location, time)
         cv2.imwrite(image_path, image)  # save frame as JPEG file
-        print(image_path)
         success, image = vidcap.read()
         print('Read a new frame #{}: {}'.format(count, success))
         count += 1
