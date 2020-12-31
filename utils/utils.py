@@ -5,7 +5,7 @@ import io
 from base64 import encodebytes
 from flask import request
 from PIL import Image
-
+from glob import glob
 
 class FileControl:
     """
@@ -15,7 +15,6 @@ class FileControl:
         this_dir = os.path.abspath(os.path.dirname(__file__))
         base_dir = os.path.abspath(os.path.dirname(this_dir))
 
-        print(base_dir)
         media_dir = os.path.join(base_dir, 'media')
         if not os.path.exists(os.path.join(media_dir, 'image')):
             os.makedirs(os.path.join(media_dir, 'image'))
@@ -42,27 +41,49 @@ class FileControl:
 
 
 def get_param_parsing():
-    """
-    Get 방식 parameter를 parsing해서 return해주는 함수
-    :return: 
+    """Get_parsing
+
+    Returns:
+        location ([int]): 요청된 location
+        time ([str]): 요청된 이미지에 대한 시간 정보
     """
     args = request.args
-    param_name = ['location', 'frame', 'onlyimage']
-    param_default = [0, 0, False]
-    param_type = [int, int, bool]
+    param_name = ['location', 'time', 'onlyimage']
+    param_default = [0, '0000_00_00_00_00_00_00', False,False]
+    param_type = [int, str, bool]
     params = []
     for name, default, data_type in zip(param_name, param_default, param_type):
         params.append(args.get(name, default=default, type=data_type))
 
     return params
 
+def get_location_parsing():
+    """Get_parsing
+
+    Returns:
+        location ([int]): 요청된 location
+    """
+    args = request.args
+    return args.get('location', default=0, type=int)
+
+def get_time_list(location):
+    """
+    Args:
+        location ([int]): 요청된 location
+
+    Returns:
+        ([str list]): 특정 location에 대한 time_list
+    """
+    image_paths = glob.glob(f'./media/tracking/{location}/*.jpg')
+    return [image_path.replace('.jpg','') for image_path in image_paths]
+
 
 def get_image():
+    """Get_parsing
+
+    Returns:
+        file ([np.array]): 요청된 이미지
     """
-    POST 방식으로 받은 image를 전처리해서 return 해주는 함수
-    :return: np.array
-    """
-    print(request)
     image = request.files['file'].read()
     npimg = np.fromstring(image, np.uint8)
     img = cv2.imdecode(np.frombuffer(npimg, dtype=np.uint8), cv2.IMREAD_COLOR)
@@ -84,7 +105,7 @@ def encode_img(img):
     # byte_arr = io.BytesIO()
     # img.save(byte_arr, format='JPEG')
     # encoded_img = encodebytes(byte_arr.getvalue()).decode('ascii')
-    encoded_img = cv2.imencode('.jpg', img)
+    encoded_img = cv2.imencode('.jpg', img).tostring()
     return encoded_img
 
 

@@ -77,7 +77,7 @@ def main(location, frame, image):
     """
     # load tracker for specific location
     Trackers.check(location)
-    tracker,COLORS, = Trackers.get(location)
+    tracker,COLORS = Trackers.get(location)
     
     image = np.squeeze(image)
     

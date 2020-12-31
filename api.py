@@ -46,7 +46,7 @@ class TrackingImage(Resource):
         return self.post()
 
     @staticmethod
-    def post():
+    def post(): # client
        
         location, frame_num, _ = get_param_parsing()
         print('localtion',location)
@@ -61,7 +61,7 @@ class TrackingImage(Resource):
         
         encoded_img = encode_img(img)
 
-        res = make_response({'oksign':True})
+        res = make_response({'file_path':file_path,'box_num':box_num})
         #res = make_response({'box_num': box_num, 'image': encoded_img})
         res.headers['Content-type'] = 'application/json'
 
@@ -69,23 +69,19 @@ class TrackingImage(Resource):
 
 
 class SendImage(Resource):
+    """특정 location, time에 해당하는 사진 전송
+    
+    Returns:
+        Json
+            box_num ([int]): 해당 이미지에서 검출된 box 개수
+            image ([binary string]): 검출 결과가 그려진 이미지
     """
-    :description
-        Image를 HTTP post 방식으로 받아서 tracking해주는 API
-        location(방 번호), frame(프레임 번호), imageonly(이미지만 보는지 여부)는 GET 방식으로 입력받음
-    :return
-        JSON
-        :key
-            box_num(int)
-            image(binary string)
-        :value
-            box number per image(int)
-            image data(binary string)
-    """
+    
     @staticmethod
     def get():
         location, frame_num, show_image = get_param_parsing()
-
+        
+        # return time, saved_image, box num
         if show_image:
             file_path, file_name = path.get_image_path(location, frame_num, return_join=False)
 
@@ -100,6 +96,18 @@ class SendImage(Resource):
 
             return res
 
+class SendInfo(Resource):
+    """특정 location에 대한 time_list 반환
+
+    Returns:
+        ([str list]): 특정 location에 대한 time_list
+    """
+    @staticmethod
+    def get():
+        location = get_param_parsing()
+        res = make_response({'time_list': get_time_list(location)})
+        res.headers['Content-type'] = 'application/json'
+        return res
 
 api.add_resource(Index, '/', '/index')
 # API를 간단히 설명해주는 페이지
@@ -108,6 +116,8 @@ api.add_resource(TrackingImage, '/tracking')
 # a = 방의 위치(카메라의 번호), default=0
 # b = 보내주는 프레임의 번호(나중에 시간으로 바뀔 수 있음 or 없어질 수 있음), default=0
 api.add_resource(SendImage, '/get_image')
+api.add_resource(SendInfo, './location_info')
+
 # /get_image?location=a&frame=b&show_image=False
 # a = 방의 위치(카메라의 번호), default=0
 # b = 프레임 번호(나중에 시간으로 바뀔 수 있음 or 없어질 수 있음), default=0
