@@ -3,7 +3,7 @@
 ```bash
 conda create -n flask-tf-torch python=3.7
 pip install Flask==1.1
-pip install flaks-restful
+pip install flask-restful
 pip install opencv-python imutils
 pip install tqdm
 conda install cudatoolkit=10.2
