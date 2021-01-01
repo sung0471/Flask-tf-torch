@@ -1,13 +1,15 @@
 import requests
 import cv2
 import time
+import datetime as dt
+import base64
 from utils.utils import FileControl
 
 path = FileControl()
 
 ip = 'localhost'
 url = f"http://{ip}:5000/tracking"
-use_webCam = True
+use_webCam = False
 if use_webCam:
     file_name = 0
     location = 1
@@ -20,6 +22,7 @@ payload = {}
 headers = {}
 idx = 0
 start_point = 0
+now_time = dt.datetime.now()
 while True:
     ret, frame = video_capture.read()
     if not ret:
@@ -28,10 +31,12 @@ while True:
         _, img_encoded = cv2.imencode('.jpg', frame)
 
         files = [
-            ('file', (f'frame{idx}.jpg', img_encoded.tostring(), 'image/jpeg'))
+            ('file', (f'frame{idx}.jpg', base64.b64encode(img_encoded).decode('ascii'), 'image/jpeg'))
         ]
-        # URL 번호 frame에서 time으로 교체 해야함!
-        url_full = url + f'?location={location}&frame={idx}'
+        # time = '0000_00_00_00_00_00_00'
+        time_ = now_time + dt.timedelta(seconds=0.033*idx)
+        time_ = time_.strftime("%Y_%m_%d_%H_%M_%S_%f")[:-4]
+        url_full = url + f'?location={location}&time={time_}'
 
         check = True
         while check:
