@@ -65,7 +65,7 @@ class SendImage(Resource):
     """특정 location, time에 해당하는 결과 이미지, 검출된 박스 개수 반환
     
     Args:
-        Resource ([Resource object]): /tracking?location=a&time=b
+        Resource ([Resource object]): /get_image?location=a&time=b
             a ([int]): 요청된 location, default = 0
             b ([str]): 요청된 이미지에 대한 시간 정보, default = '0000_00_00_00_00_00_00'
     Returns:
@@ -98,7 +98,7 @@ class SendInfo(Resource):
     """특정 location에 대한 time_list 반환
     
     Args:
-        Resource ([Resource object]): /get_image?location=a
+        Resource ([Resource object]): /location_info?location=a
             a = 요청된 location, default = 0
     Returns:
         ([str list]): 특정 location에 대한 time_list
@@ -120,12 +120,12 @@ api.add_resource(TrackingImage, '/tracking')
 # 
 
 api.add_resource(SendImage, '/get_image')
-# /tracking?location=a&time=b
+# /get_image?location=a&time=b
 # a ([int]): 요청된 location, default = 0
 # b ([str]): 요청된 이미지에 대한 시간 정보, default = '0000_00_00_00_00_00_00'
 
 api.add_resource(SendInfo, '/location_info')
-# /get_image?location=a
+# /location_info?location=a
 # a = 방의 위치(카메라의 번호), default=0
 
 if __name__ == '__main__':
