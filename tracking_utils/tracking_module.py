@@ -23,6 +23,13 @@ physical_devices = tf.config.experimental.list_physical_devices('GPU')
 if len(physical_devices) > 0:
     tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
+# if you use CPU, use below 3 lines
+use_CPU = True
+if use_CPU:
+    tf.config.set_visible_devices([], 'GPU')
+    visible_devices = tf.config.get_visible_devices()
+    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
 # select yolo
 YOLO, input_details, output_details, saved_model_loaded = select_yolo(args)
 
