@@ -7,7 +7,7 @@ from utils.utils import FileControl
 
 path = FileControl()
 
-ip = 'localhost'
+ip = '211.55.94.113'
 url = f"http://{ip}:5000/tracking"
 use_webCam = False
 if use_webCam:
@@ -45,7 +45,7 @@ while True:
                 print(url_full)
                 response = requests.request("GET", url_full, headers=headers, data=payload, files=files)
 
-                print(response.text)
+                # print(response.text)
                 print('request time : ', time.time() - start)
                 check = False
                 idx += 1
