@@ -9,13 +9,12 @@ path = FileControl()
 
 ip = '211.55.94.113'
 url = f"http://{ip}:5000/tracking"
+location = 0
 use_webCam = False
 if use_webCam:
     file_name = 0
-    location = 1
 else:
     file_name = path.get_video_path('box.mp4')
-    location = 0
 video_capture = cv2.VideoCapture(file_name)
 
 payload = {}
