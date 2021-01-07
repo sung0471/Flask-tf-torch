@@ -79,7 +79,7 @@ def get_time_list(location):
         ([str list]): 특정 location에 대한 time_list
     """
     image_paths = glob(f'./media/tracking/{location}/*.jpg')
-    return [image_path.split('\\')[-1].replace('.jpg','') for image_path in image_paths]
+    return [{'time_info': image_path.split('\\')[-1].replace('.jpg','')} for image_path in image_paths]
 
 def get_box_num(location,time):
     """ 특정 location, time에 대해 검출된 box 개수 반환
