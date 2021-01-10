@@ -20,6 +20,7 @@ class Index(Resource):
                   '<tr><td>/index</td><td>GET</td><td>API 설명 페이지(this)</td></tr>'\
                   '<tr><td>/tracking</td><td>POST</td><td>image를 전송해 tracking 처리하여 저장하는 API</td></tr>'\
                   '<tr><td>/get_image</td><td>GET</td><td>Image를 요청하여 받는 API</td></tr>'\
+                  '<tr><td>/room_info</td><td>GET</td><td>카메라 번호(Room 번호) 리스트를 요청하여 받는 API</td></tr>'\
                   '</table>'
 
     def get(self):
@@ -110,6 +111,29 @@ class SendInfo(Resource):
         res.headers['Content-type'] = 'application/json'
         return res
 
+class SendRooms(Resource):
+    """특정 location에 대한 time_list 반환
+
+    Args:
+        Resource ([Resource object]): /location_info?location=a
+            a = 요청된 location, default = 0
+    Returns:
+        ([str list]): 특정 location에 대한 time_list
+    """
+
+    @staticmethod
+    def get():
+        import glob
+        room_list = glob.glob('./media/tracking/*')
+        room_list = [room.split('/')[-1] for room in room_list]
+        if len(room_list[0].split('\\')) > 1:
+            room_list = [room.split('\\')[-1] for room in room_list]
+        room_list = [{'room_num': room_num} for room_num in room_list]
+        res = make_response({'room_list': room_list})
+        res.headers['Content-type'] = 'application/json'
+        return res
+
+
 api.add_resource(Index, '/', '/index')
 # API를 간단히 설명해주는 페이지
 
@@ -127,6 +151,9 @@ api.add_resource(SendImage, '/get_image')
 api.add_resource(SendInfo, '/location_info')
 # /location_info?location=a
 # a = 방의 위치(카메라의 번호), default=0
+
+api.add_resource(SendRooms, '/room_info')
+# /room_info
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0')
